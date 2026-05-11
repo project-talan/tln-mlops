@@ -8,3 +8,4 @@
 # .tfvars files
 *.tfvars
 *out.terraform*
+dev/.terraform.lock.hcl
