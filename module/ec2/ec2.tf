@@ -107,6 +107,7 @@ resource "aws_instance" "ai_server" {
   user_data_base64 = base64encode(templatefile("${path.module}/templates/template.sh.tftpl", {
     custom_packages = join(",", local.flattened_custom_packages_map)
     model = var.model
+    models = var.models
   }))
 
 

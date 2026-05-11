@@ -74,7 +74,8 @@ ExecStart=/usr/local/bin/ollama serve
 # wait until API started
 ExecStartPost=/usr/bin/sleep 10
 # pull model on start
-ExecStartPost=/usr/local/bin/ollama pull ${model}
+ExecStartPost=/usr/bin/bash -c 'for ai_model in ${join(" ", models)}; do /usr/local/bin/ollama pull $$ai_model; done'
+
 # load model in memory
 ExecStartPost=/usr/local/bin/ollama run ${model} ""
 User=root

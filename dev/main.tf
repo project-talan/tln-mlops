@@ -52,6 +52,7 @@ module "ec2" {
   tags             = var.instance_tags  //module.shared.tags
   custom_packages  = var.bastion_custom_packages
   model            = each.key
+  models           = var.model_names
   #close access to private subnet cidr only
   //allowed_ssh_cidr_blocks = module.vpc.private_subnets_cidr_blocks
 }
