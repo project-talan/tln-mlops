@@ -1,0 +1,53 @@
+#!/bin/bash
+#Install prerequisites
+sudo apt-get update
+sudo apt-get install -y apt-transport-https ca-certificates curl gnupg
+
+## wait for network avalible
+until ping -c 1 google.com &>/dev/null; do
+  echo "Waiting for internet..."
+  sleep 5
+done
+## installation script Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# disable default Ollama without model.
+sudo systemctl disable ollama.service
+sudo systemctl stop ollama.service
+
+# creation of systemd Ollama
+sudo tee /etc/systemd/system/ollama2.service <<EOF
+[Unit]
+Description=Ollama Service
+After=network-online.target
+
+[Service]
+TimeoutStartSec=0
+Environment="OLLAMA_HOST=0.0.0.0"
+
+Environment="OLLAMA_LOAD_TIMEOUT=20m"
+Environment="LD_LIBRARY_PATH=/usr/local/cuda/lib64"
+# save models olama path to folder
+Environment="OLLAMA_MODELS=/usr/share/ollama/.ollama/models"
+
+ExecStart=/usr/local/bin/ollama serve
+# wait until API started
+ExecStartPost=/usr/bin/sleep 10
+# pull models from list into server
+ExecStartPost=/usr/bin/bash -c 'echo ${join(" ", models)} | xargs -n 1 /usr/local/bin/ollama pull'
+# load model in memory
+ExecStartPost=/usr/local/bin/ollama run ${model} ""
+User=root
+Group=root
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+
+# systemd activation
+sudo systemctl daemon-reload
+sudo systemctl enable ollama2.service
+sudo systemctl start ollama2.service

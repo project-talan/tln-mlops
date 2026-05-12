@@ -7,14 +7,9 @@ locals {
 locals {
   ami_id = data.aws_ami.dlami_gpu.id
 
-  flattened_custom_packages_map = flatten([
-    for key, value in var.custom_packages :
-    [key, value]
-  ])
-
   tags = merge(
     {
-      "Name" = "${var.resources_prefix}"
+      "Name" = "${var.instance_name}"
     },
     var.tags
   )
@@ -22,23 +17,12 @@ locals {
 
 resource "aws_security_group" "ai_server_sg" {
   count       = local.create_security_group ? 1 : 0 #checking if we need to create a new security group or use the default one
-  name        = "${var.resources_prefix}-sg"
+  name        = "${var.instance_name}-sg"
   description = "Allow SSH access to the ai server"
-  vpc_id      = data.aws_vpc.jumpserver.id
+  vpc_id      = data.aws_vpc.ai_server.id
 
   tags = local.tags
 }
-
-#resource "aws_vpc_security_group_ingress_rule" "allow_ec2_instance_connect" {
-#  security_group_id = local.security_group_id
-#
-#  # Використовуємо отримані діапазони
-#  cidr_ipv4   = data.aws_ip_ranges.frankfurt_ec2_instance_connect.cidr_blocks[0]
-#  from_port   = 22
-#  to_port     = 22
-#  ip_protocol = "tcp"
-#  description = "Allow SSH access from EC2 Instance Connect service"
-#}
 
 resource "aws_vpc_security_group_ingress_rule" "allow_ssh" {
   for_each = toset(var.allowed_ssh_cidr_blocks)
@@ -85,12 +69,13 @@ resource "tls_private_key" "ssh" {
 }
 
 resource "aws_key_pair" "ssh" {
-  key_name   = "${var.resources_prefix}-ssh-key"
+  key_name   = "${var.instance_name}-ssh-key"
   public_key = tls_private_key.ssh.public_key_openssh
 
   tags = local.tags
 }
 
+//public static ip
 #resource "aws_eip" "static_ip" {
 #  instance = aws_instance.ai_server.id
 #  domain   = "vpc" # IP is used in VPC
@@ -105,9 +90,8 @@ resource "aws_instance" "ai_server" {
   vpc_security_group_ids = [local.security_group_id]
   key_name               = aws_key_pair.ssh.key_name
   user_data_base64 = base64encode(templatefile("${path.module}/templates/template.sh.tftpl", {
-    custom_packages = join(",", local.flattened_custom_packages_map)
     model = var.model
-    models = var.models
+    models = var.allowed_models
   }))
 
 
@@ -122,8 +106,8 @@ resource "aws_instance" "ai_server" {
   }
   root_block_device {
     encrypted   = true
-    //volume_type = "gp3"
-    volume_size = var.jumpserver_volume_size
+    volume_type = "gp3"
+    volume_size = var.disk_size
   }
 
   tags = local.tags
@@ -131,13 +115,13 @@ resource "aws_instance" "ai_server" {
 
 # Add local file resources to save key and address
 resource "local_sensitive_file" "ssh_private_key_pem" {
-  filename        = "${var.files_prefix}-ssh-key.pem"
+  filename        = "${var.instance_name}-ssh-key.pem"
   file_permission = "400"
   content         = tls_private_key.ssh.private_key_pem
 }
 
 resource "local_sensitive_file" "ai_server_address" {
-  filename        = "${var.files_prefix}.addr"
+  filename        = "${var.instance_name}.addr"
   file_permission = "400"
   content         = "ubuntu@${aws_instance.ai_server.public_ip}"
 }

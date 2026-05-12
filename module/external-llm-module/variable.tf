@@ -1,9 +1,4 @@
-variable "resources_prefix" {
-  description = "Prefix for resource names to ensure uniqueness."
-  type        = string
-}
-
-variable "files_prefix" {
+variable "instance_name" {
   description = "Prefix for local file names to ensure uniqueness."
   type        = string
 }
@@ -29,7 +24,7 @@ variable "instance_type" {
   type        = string
   default     = "g4dn.xlarge"
 }
-variable "jumpserver_volume_size" {
+variable "disk_size" {
   description = "The size of the EBS volume for the jump server instance."
   type        = number
   default     = 50
@@ -52,16 +47,12 @@ variable "model" {
   type = string
 }
 
-variable "custom_packages" {
-  type = map(string)
-}
-
 variable "tags" {
   description = "A map of tags to assign to the resources."
   type        = map(string)
 }
 
-variable "models" {
+variable "allowed_models" {
   type = list(string)
   description = "list of models"
 }

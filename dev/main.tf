@@ -30,42 +30,23 @@ module "bastion" {
   tags             = var.instance_tags
 }
 
-variable "model_names" {
-  description = "list of models to run on ec2"
-  default = ["llama3", "mistral"]
-  type = list(string)
-}
+module "llm_instances" {
+  source = "../module/external-llm-module"
+  for_each = { for inst in var.instances : inst.name => inst }
 
-module "ec2" {
-  source = "../module/ec2"
-  //for_each = toset(var.model_names)
-  # Create map, where key — name, value — index + 1
-  for_each = { for i, name in var.model_names : name => i + 1 }
+  instance_name  = each.value.name
+  instance_type  = each.value.instanceType
+  disk_size      = each.value.disk-size
+  allowed_models = each.value.models # Passes the list of models directly
 
+  //network configuration
   use_default_vpc  = false
-
-  resources_prefix = "llm-node-${each.value}-${each.key}"
-  files_prefix     = "llm-node-${each.value}-${each.key}"
   vpc_id           = module.vpc.vpc_id
   subnet_id        = module.vpc.private_subnets[0]
-  instance_type    = "g4dn.xlarge"
-  tags             = var.instance_tags  //module.shared.tags
-  custom_packages  = var.bastion_custom_packages
-  model            = each.key
-  models           = var.model_names
-  #close access to private subnet cidr only
-  //allowed_ssh_cidr_blocks = module.vpc.private_subnets_cidr_blocks
-}
 
-#Configuration Example
-#instances:
-#- name: llm-node-1
-#instanceType: g5.xlarge
-#models:
-#- llama3
-#- mistral
-#- name: llm-node-2
-#instanceType: g5.2xlarge
-#models:
-#- codellama
-#- qwen
+  tags             = var.instance_tags  //module.shared.tags
+
+  //load first model in memory
+  model            = each.value.models[0]
+
+}
